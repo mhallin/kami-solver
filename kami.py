@@ -24,6 +24,33 @@ BOARDS = {
          + ['BBKKKKKKBB'] * 4
          + ['BBRRRRRRBB'] * 3
          + ['B' * 10] * 3),
+    'A4': (['B' * 10] * 2
+         + ['K' * 10]
+         + ['KBBBBBBBBK']
+         + ['KBRRRRRRBK']
+         + ['KBRKKKKRBK']
+         + ['KBRKRRKRBK'] * 4
+         + ['KBRKKKKRBK']
+         + ['KBRRRRRRBK']
+         + ['KBBBBBBBBK']
+         + ['K' * 10]
+         + ['B' * 10] * 2),
+    'A5': (['BBBRRBRRBB']
+         + ['BBRRBBBRRB']
+         + ['BRRBBKBBRR']
+         + ['RRBBKKKBBR']
+         + ['RBBKKBKKBB']
+         + ['RBKKBRBKKB']
+         + ['RBBKKBKKBB']
+         + ['RRBBKKKBBR']
+         + ['BRRBBKBBRR']
+         + ['BBRRBBBRRB']
+         + ['BBBRRBRRBB']
+         + ['KBBBRRRBBB']
+         + ['KKBBBRBBBK']
+         + ['BKKBBBBBKK']
+         + ['BBKKBBBKKB']
+         + ['BBBKKBKKBB']),
     'A7': (['B' * 10] * 3
          + ['BBBRRRRRRR'] * 2
          + ['BBBRRKKKKK'] * 2
@@ -124,12 +151,8 @@ SETUPS = {
 
 class Board(object):
     def __init__(self, initial_board):
-        if len(initial_board) != BOARD_HEIGHT:
-            raise Exception('Board has incorrect height: {} != {}'.format(BOARD_HEIGHT, len(initial_board)))
-        if any(len(row) != BOARD_WIDTH for row in initial_board):
-            raise Exception('Board has incorrect width on some row')
-
-        self.board = copy.deepcopy(initial_board)
+        self.board = [row[:] for row in initial_board]
+        self._interesting_points = None
 
     def get(self, x, y):
         return self.board[y][x]
@@ -151,7 +174,7 @@ class Board(object):
         screen.refresh()
 
     def replaced_color(self, x, y, new_color):
-        old_color = self.get(x, y)
+        old_color = self.board[y][x]
         if old_color == new_color:
             return self
 
@@ -163,7 +186,7 @@ class Board(object):
         return other
 
     def flood_fill_from(self, x, y):
-        old_color = self.get(x, y)
+        old_color = self.board[y][x]
 
         q = []
         q.append((x, y))
@@ -173,45 +196,53 @@ class Board(object):
         while q:
             x, y = q[0]
             del q[0]
-            if (x, y) in visited or self.get(x, y) != old_color:
+
+            if (x, y) in visited or self.board[y][x] != old_color:
                 continue
 
             visited.add((x, y))
 
-            if x - 1 >= 0:
+            if x - 1 >= 0 and (x-1, y) not in visited:
                 q.append((x-1, y))
-            if x + 1 < BOARD_WIDTH:
+            if x + 1 < BOARD_WIDTH and (x+1, y) not in visited:
                 q.append((x+1, y))
-            if y - 1 >= 0:
+            if y - 1 >= 0 and (x, y-1) not in visited:
                 q.append((x, y-1))
-            if y + 1 < BOARD_HEIGHT:
+            if y + 1 < BOARD_HEIGHT and (x, y+1) not in visited:
                 q.append((x, y+1))
 
         return visited
 
     def is_done(self):
-        c = self.get(0, 0)
+        c = self.board[0][0]
 
         for x, y in BOARD_COORDS:
-            if self.get(x, y) != c:
+            if self.board[y][x] != c:
                 return False
 
         return True
 
     def interesting_points(self):
+        if self._interesting_points:
+            return self._interesting_points
+
         c = None
 
         skip = set()
+        l = []
 
         for x, y in BOARD_COORDS:
             if (x, y) in skip:
                 continue
 
-            new_c = self.get(x, y)
+            new_c = self.board[y][x]
             if new_c != c:
                 c = new_c
                 skip.update(self.flood_fill_from(x, y))
-                yield (x, y)
+                l.append((x, y))
+
+        self._interesting_points = l
+        return l
 
     def field_count(self):
         return len(list(self.interesting_points()))
@@ -229,11 +260,19 @@ class LinkedList(object):
 
 
 def gen_options(other_colors, board):
+    l = []
+
     for x, y in board.interesting_points():
         base_color = board.get(x, y)
 
         for color in other_colors(base_color):
-            yield (x, y), color, board.replaced_color(x, y, color)
+            l.append(((x, y), color, board.replaced_color(x, y, color)))
+
+    return l
+
+
+def option_sort_key(option):
+    return option[2].field_count()
 
 
 def get_solution_path(other_colors, board, step, max_step):
@@ -244,7 +283,7 @@ def get_solution_path(other_colors, board, step, max_step):
         return None
 
     options = list(gen_options(other_colors, board))
-    options.sort(key=lambda t: t[2].field_count())
+    options.sort(key=option_sort_key)
 
     for coord, color, option in options:
         path = get_solution_path(other_colors, option, step + 1, max_step)
@@ -269,7 +308,7 @@ def solve(problem_setup, board):
             return
 
     for (x, y), color in path:
-        print('Color {},{} {}'.format(x, y, problem_setup.color_names[color]))
+        print('Color {},{} {}'.format(x+1, y+1, problem_setup.color_names[color]))
 
 
 def main(screen, problem_setup, board):
@@ -322,6 +361,11 @@ if __name__ == '__main__':
 
     problem_setup = SETUPS[board_name[0]]
     board = Board([[problem_setup.color_map[c] for c in row] for row in BOARDS[board_name]])
+
+    if len(board.board) != BOARD_HEIGHT:
+        raise Exception('Board has incorrect height: {} != {}'.format(BOARD_HEIGHT, len(board.board)))
+    if any(len(row) != BOARD_WIDTH for row in board.board):
+        raise Exception('Board has incorrect width on some row')
 
     if run_solver:
         solve(problem_setup, board)
