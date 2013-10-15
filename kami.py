@@ -2,6 +2,7 @@ import copy
 import curses
 import operator
 import sys
+import time
 
 from collections import namedtuple
 from functools import reduce
@@ -259,13 +260,21 @@ class LinkedList(object):
             n = n.tail
 
 
+BOARDS_GENERATED = 0
+
+
 def gen_options(other_colors, board):
+    global BOARDS_GENERATED
     l = []
 
     for x, y in board.interesting_points():
         base_color = board.get(x, y)
 
         for color in other_colors(base_color):
+            BOARDS_GENERATED += 1
+            if BOARDS_GENERATED % 10000 == 0:
+                print('{} boards generated'.format(BOARDS_GENERATED))
+
             l.append(((x, y), color, board.replaced_color(x, y, color)))
 
     return l
@@ -295,8 +304,11 @@ def get_solution_path(other_colors, board, step, max_step):
 
 
 def solve(problem_setup, board):
+    global BOARDS_GENERATED
     limit = 1
     path = False
+
+    start_time = time.time()
 
     while path is False:
         limit += 1
@@ -307,8 +319,13 @@ def solve(problem_setup, board):
             print('I guess there\'s no solution...')
             return
 
+    end_time = time.time()
+
     for (x, y), color in path:
         print('Color {},{} {}'.format(x+1, y+1, problem_setup.color_names[color]))
+
+    print('')
+    print('{} boards generated in {:10.5} seconds'.format(BOARDS_GENERATED, (end_time - start_time)))
 
 
 def main(screen, problem_setup, board):
