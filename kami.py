@@ -3,6 +3,7 @@ import curses
 import operator
 import sys
 
+from collections import namedtuple
 from functools import reduce
 from itertools import product
 
@@ -15,10 +16,6 @@ BOARD_WIDTH = 10
 BOARD_HEIGHT = 16
 BOARD_COORDS = list(product(range(BOARD_WIDTH), range(BOARD_HEIGHT)))
 
-COLOR_INT_MAP = {'R': 1, 'K': 2, 'B': 3}
-INT_COLOR_MAP = {1: 'red', 2: 'black', 3: 'blue'}
-COLOR_MAP = {1: curses.COLOR_RED, 2: curses.COLOR_BLACK, 3: curses.COLOR_BLUE}
-
 BOARDS = {
     'A1': ['R' * 10 ] * 8 + ['K' * 10] * 8,
     'A2': ['B' * 10] * 3 + ['BBRRRRRRBB'] * 10 + ['B' * 10] * 3,
@@ -27,6 +24,13 @@ BOARDS = {
          + ['BBKKKKKKBB'] * 4
          + ['BBRRRRRRBB'] * 3
          + ['B' * 10] * 3),
+    'A7': (['B' * 10] * 3
+         + ['BBBRRRRRRR'] * 2
+         + ['BBBRRKKKKK'] * 2
+         + ['BBBRRKKBBB'] * 4
+         + ['KKBKKRRBRR'] * 2
+         + ['KKKBBBBRRR']
+         + ['KKKKKRRRRR'] * 2),
     'A9': (['K' * 10]
          + ['KBBKBBBBBK']
          + ['KBBKBKKKBK']
@@ -41,7 +45,80 @@ BOARDS = {
          + ['KRKRRRRKRK']
          + ['KRKKKKKKRK']
          + ['KRRRRRRRRK']
-         + ['K' * 10])
+         + ['K' * 10]),
+
+    'B4': (['K' * 10]
+         + ['KKKKKKYKYK']
+         + ['KKKKKKKYKK']
+         + ['KKKKKKYKYK']
+         + ['RKKKKKKKKK']
+         + ['KRKKKKKKKK']
+         + ['KKRKKKKKKK']
+         + ['KKKRKKKKKK']
+         + ['KKKKRKKKKK']
+         + ['KKKKKRKKKK']
+         + ['KKKKKKRKKK']
+         + ['KKKKKKKRKK']
+         + ['KKKKKKKKRK']
+         + ['KKKKKKKKKR']
+         + ['K' * 10] * 2),
+    'B7': (['K' * 10]
+         + ['KKYKYKKKKK']
+         + ['KKKYKKKKKR']
+         + ['KKYKYKKKRK']
+         + ['KKKKKKKRKK']
+         + ['KKKKKKRKKK']
+         + ['KKKKKRKKKK']
+         + ['RKKKWKKKKK']
+         + ['KWKRKKYKYK']
+         + ['KKRKKKKYKK']
+         + ['KKKRKKYKYK']
+         + ['KKKKWKKKKK']
+         + ['KKKKKRKKKK']
+         + ['KKKKKKRKKK']
+         + ['KKKKKKKRKK']
+         + ['KKKKKKKKRK']),
+}
+
+
+def other_colors3(color):
+    if color == 1: return (2, 3)
+    if color == 2: return (1, 3)
+    if color == 3: return (1, 2)
+
+
+def other_colors4(color):
+    if color == 1: return (2, 3, 4)
+    if color == 2: return (1, 3, 4)
+    if color == 3: return (1, 2, 4)
+    if color == 4: return (1, 2, 3)
+
+OTHER_COLORS_FNS = {3: other_colors3, 4: other_colors4}
+
+
+class ProblemSetup(object):
+    def __init__(self, n_colors, color_chars, color_names, curses_pairs):
+        self.n_colors = n_colors
+        self.color_map = {c: i+1 for i, c in enumerate(color_chars)}
+        self.color_names = {i+1: n for i, n in enumerate(color_names)}
+        self.curses_pairs = curses_pairs
+        self.other_colors = OTHER_COLORS_FNS[n_colors]
+
+    def init_curses_colors(self):
+        for i, (fg, bg) in enumerate(self.curses_pairs):
+            curses.init_pair(i+1, fg, bg)
+
+
+SETUPS = {
+    'A': ProblemSetup(3, ['R', 'K', 'B'], ['red', 'black', 'blue'],
+                      [(curses.COLOR_WHITE, curses.COLOR_RED),
+                       (curses.COLOR_WHITE, curses.COLOR_BLACK),
+                       (curses.COLOR_WHITE, curses.COLOR_BLUE)]),
+    'B': ProblemSetup(4, ['R', 'K', 'W', 'Y'], ['red', 'black', 'white', 'yellow'],
+                      [(curses.COLOR_WHITE, curses.COLOR_RED),
+                       (curses.COLOR_WHITE, curses.COLOR_BLACK),
+                       (curses.COLOR_BLACK, curses.COLOR_WHITE),
+                       (curses.COLOR_BLACK, curses.COLOR_YELLOW)]),
 }
 
 
@@ -88,31 +165,38 @@ class Board(object):
     def flood_fill_from(self, x, y):
         old_color = self.get(x, y)
 
-        q = Queue()
-        q.put((x, y))
+        q = []
+        q.append((x, y))
 
         visited = set()
 
-        while not q.empty():
-            x, y = q.get()
+        while q:
+            x, y = q[0]
+            del q[0]
             if (x, y) in visited or self.get(x, y) != old_color:
                 continue
 
             visited.add((x, y))
 
             if x - 1 >= 0:
-                q.put((x-1, y))
+                q.append((x-1, y))
             if x + 1 < BOARD_WIDTH:
-                q.put((x+1, y))
+                q.append((x+1, y))
             if y - 1 >= 0:
-                q.put((x, y-1))
+                q.append((x, y-1))
             if y + 1 < BOARD_HEIGHT:
-                q.put((x, y+1))
+                q.append((x, y+1))
 
         return visited
 
     def is_done(self):
-        return list(self.interesting_points()) == [(0, 0)]
+        c = self.get(0, 0)
+
+        for x, y in BOARD_COORDS:
+            if self.get(x, y) != c:
+                return False
+
+        return True
 
     def interesting_points(self):
         c = None
@@ -144,13 +228,7 @@ class LinkedList(object):
             n = n.tail
 
 
-def other_colors(color):
-    if color == 1: return (2, 3)
-    if color == 2: return (1, 3)
-    if color == 3: return (1, 2)
-
-
-def gen_options(board):
+def gen_options(other_colors, board):
     for x, y in board.interesting_points():
         base_color = board.get(x, y)
 
@@ -158,18 +236,18 @@ def gen_options(board):
             yield (x, y), color, board.replaced_color(x, y, color)
 
 
-def get_solution_path(board, step, max_step):
+def get_solution_path(other_colors, board, step, max_step):
     if step == max_step:
         return False
 
     if board.is_done():
         return None
 
-    options = list(gen_options(board))
+    options = list(gen_options(other_colors, board))
     options.sort(key=lambda t: t[2].field_count())
 
     for coord, color, option in options:
-        path = get_solution_path(option, step + 1, max_step)
+        path = get_solution_path(other_colors, option, step + 1, max_step)
 
         if path != False:
             return LinkedList((coord, color), path)
@@ -177,33 +255,30 @@ def get_solution_path(board, step, max_step):
     return False
 
 
-def solve(board):
+def solve(problem_setup, board):
     limit = 1
     path = False
 
     while path is False:
         limit += 1
         print('Solving with step limit {}...'.format(limit - 1))
-        path = get_solution_path(board, 0, limit)
+        path = get_solution_path(problem_setup.other_colors, board, 0, limit)
 
         if limit == 10:
             print('I guess there\'s no solution...')
             return
 
     for (x, y), color in path:
-        print('Color {},{} {}'.format(x, y, INT_COLOR_MAP[color]))
+        print('Color {},{} {}'.format(x, y, problem_setup.color_names[color]))
 
 
-def main(screen, board):
+def main(screen, problem_setup, board):
     screen.clear()
 
     curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_RED)
-    curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLUE)
+    problem_setup.init_curses_colors()
 
     cursor_x, cursor_y = 0, 0
-
 
     running = True
 
@@ -215,7 +290,7 @@ def main(screen, board):
 
         if chr(k) == 'q':
             running = False
-        elif chr(k) in ('1', '2', '3'):
+        elif chr(k) in ('1', '2', '3', '4'):
             board = board.replaced_color(cursor_x, cursor_y, int(chr(k)))
         elif k in (curses.KEY_UP, ','):
             cursor_y = max(0, cursor_y - 1)
@@ -245,9 +320,10 @@ if __name__ == '__main__':
 
         sys.exit(1)
 
-    board = Board([[COLOR_INT_MAP[c] for c in row] for row in BOARDS[board_name]])
+    problem_setup = SETUPS[board_name[0]]
+    board = Board([[problem_setup.color_map[c] for c in row] for row in BOARDS[board_name]])
 
     if run_solver:
-        solve(board)
-    elif not curses.wrapper(main, board):
+        solve(problem_setup, board)
+    elif not curses.wrapper(main, problem_setup, board):
         sys.exit(1)
