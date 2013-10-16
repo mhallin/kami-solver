@@ -268,9 +268,9 @@ if __name__ == '__main__':
 
         sys.exit(1)
 
-    board_name = sys.argv[2 if sys.argv[1] == 'solve' else 1]
     run_solver = sys.argv[1] == 'solve'
     run_graph_solver = sys.argv[1] == 'graph-solve'
+    board_name = sys.argv[2 if run_solver or run_graph_solver else 1]
 
     with open('levels/{}.txt'.format(board_name)) as board_file:
         board_text = board_file.read().split()
