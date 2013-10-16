@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import copy
 import curses
 import operator
@@ -8,10 +10,8 @@ from collections import namedtuple
 from functools import reduce
 from itertools import product
 
-try:
-    from queue import Queue
-except ImportError:
-    from Queue import Queue
+from kamigraph import graph_solve
+from kamicommon import LinkedList
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 16
@@ -151,27 +151,16 @@ class Board(object):
                 continue
 
             new_c = self.board[y][x]
-            if new_c != c:
-                c = new_c
-                skip.update(self.flood_fill_from(x, y))
-                l.append((x, y))
+            # if new_c != c:
+            c = new_c
+            skip.update(self.flood_fill_from(x, y))
+            l.append((x, y))
 
         self._interesting_points = l
         return l
 
     def field_count(self):
         return len(list(self.interesting_points()))
-
-
-class LinkedList(object):
-    def __init__(self, head, tail):
-        self.head, self.tail = head, tail
-
-    def __iter__(self):
-        n = self
-        while n:
-            yield n.head
-            n = n.tail
 
 
 BOARDS_GENERATED = 0
@@ -275,12 +264,13 @@ def main(screen, problem_setup, board):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print('Usage: {} [solve] level [solver-start-depth]'.format(sys.argv[0]))
+        print('Usage: {} [solve/graph-solve] level [solver-start-depth]'.format(sys.argv[0]))
 
         sys.exit(1)
 
     board_name = sys.argv[2 if sys.argv[1] == 'solve' else 1]
     run_solver = sys.argv[1] == 'solve'
+    run_graph_solver = sys.argv[1] == 'graph-solve'
 
     with open('levels/{}.txt'.format(board_name)) as board_file:
         board_text = board_file.read().split()
@@ -296,5 +286,8 @@ if __name__ == '__main__':
     if run_solver:
         start_depth = int(sys.argv[3]) if len(sys.argv) >= 4 else 0
         solve(problem_setup, board, start_depth)
+    elif run_graph_solver:
+        start_depth = int(sys.argv[3]) if len(sys.argv) >= 4 else 0
+        graph_solve(problem_setup, board, start_depth)
     elif not curses.wrapper(main, problem_setup, board):
         sys.exit(1)
