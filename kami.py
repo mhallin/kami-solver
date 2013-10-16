@@ -106,6 +106,37 @@ BOARDS = {
          + ['KKKKKKRKKK']
          + ['KKKKKKKRKK']
          + ['KKKKKKKKRK']),
+    'C1': (['BBBBBBBRRR']
+         + ['BRRRRRRRRR']
+         + ['BRBBBBBRRR']
+         + ['BRRCCCBBRR']
+         + ['BBBBBCBBBB']
+         + ['BOOOCCBBBB']
+         + ['BOBBBBBBBB']
+         + ['BOOOOOOCCB']
+         + ['BBBBBBBBCB']
+         + ['BBBBCCCCCB']
+         + ['BBBBCBBBBB']
+         + ['RRBBCCCCCB']
+         + ['RRRBBBBBRB']
+         + ['RRRRRRRBRB']
+         + ['RRRBBBRRRB']
+         + ['RRBBBBBBBB']),
+    'C9': (['OOOCCCBBBB']
+         + ['OBOBBCBCCC']
+         + ['OOORRCRRBC']
+         + ['CRBBBCBRCC']
+         + ['CROOOCOROB']
+         + ['CROBOCOROB']
+         + ['CRORRROROB']
+         + ['CBOBOCOBOB'] * 2
+         + ['RRRROCOOOB']
+         + ['RBOOOCRRRR']
+         + ['RBBRBCRBBR']
+         + ['RRRROOROBR']
+         + ['CBOBBCRORR']
+         + ['CCCCCCBOBB']
+         + ['BBOOOOOOBB']),
 }
 
 
@@ -146,6 +177,11 @@ SETUPS = {
                       [(curses.COLOR_WHITE, curses.COLOR_RED),
                        (curses.COLOR_WHITE, curses.COLOR_BLACK),
                        (curses.COLOR_BLACK, curses.COLOR_WHITE),
+                       (curses.COLOR_BLACK, curses.COLOR_YELLOW)]),
+    'C': ProblemSetup(4, ['B', 'R', 'C', 'O'], ['blue', 'red', 'cyan', 'orange'],
+                      [(curses.COLOR_WHITE, curses.COLOR_BLUE),
+                       (curses.COLOR_WHITE, curses.COLOR_RED),
+                       (curses.COLOR_BLACK, curses.COLOR_CYAN),
                        (curses.COLOR_BLACK, curses.COLOR_YELLOW)]),
 }
 
@@ -261,6 +297,7 @@ class LinkedList(object):
 
 
 BOARDS_GENERATED = 0
+START_TIME = None
 
 
 def gen_options(other_colors, board):
@@ -273,7 +310,7 @@ def gen_options(other_colors, board):
         for color in other_colors(base_color):
             BOARDS_GENERATED += 1
             if BOARDS_GENERATED % 10000 == 0:
-                print('{} boards generated'.format(BOARDS_GENERATED))
+                print('{} boards generated ({} boards/s)'.format(BOARDS_GENERATED, BOARDS_GENERATED / (time.time() - START_TIME)))
 
             l.append(((x, y), color, board.replaced_color(x, y, color)))
 
@@ -303,12 +340,12 @@ def get_solution_path(other_colors, board, step, max_step):
     return False
 
 
-def solve(problem_setup, board):
-    global BOARDS_GENERATED
-    limit = 1
+def solve(problem_setup, board, start_depth):
+    global BOARDS_GENERATED, START_TIME
+    limit = start_depth
     path = False
 
-    start_time = time.time()
+    START_TIME = start_time = time.time()
 
     while path is False:
         limit += 1
@@ -351,16 +388,16 @@ def main(screen, problem_setup, board):
         elif k in (curses.KEY_UP, ','):
             cursor_y = max(0, cursor_y - 1)
         elif k in (curses.KEY_DOWN, 'o'):
-            cursor_y = min(BOARD_WIDTH - 1, cursor_y + 1)
+            cursor_y = min(BOARD_HEIGHT - 1, cursor_y + 1)
         elif k in (curses.KEY_LEFT, 'a'):
             cursor_x = max(0, cursor_x - 1)
         elif k in (curses.KEY_RIGHT, 'e'):
-            cursor_x = min(BOARD_HEIGHT - 1, cursor_x + 1)
+            cursor_x = min(BOARD_WIDTH - 1, cursor_x + 1)
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print('Usage: {} [solve] level'.format(sys.argv[0]))
+        print('Usage: {} [solve] level [solver-start-depth]'.format(sys.argv[0]))
 
         sys.exit(1)
 
@@ -385,6 +422,7 @@ if __name__ == '__main__':
         raise Exception('Board has incorrect width on some row')
 
     if run_solver:
-        solve(problem_setup, board)
+        start_depth = int(sys.argv[3]) if len(sys.argv) >= 4 else 0
+        solve(problem_setup, board, start_depth)
     elif not curses.wrapper(main, problem_setup, board):
         sys.exit(1)
