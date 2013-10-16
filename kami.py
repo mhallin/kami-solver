@@ -17,128 +17,6 @@ BOARD_WIDTH = 10
 BOARD_HEIGHT = 16
 BOARD_COORDS = list(product(range(BOARD_WIDTH), range(BOARD_HEIGHT)))
 
-BOARDS = {
-    'A1': ['R' * 10 ] * 8 + ['K' * 10] * 8,
-    'A2': ['B' * 10] * 3 + ['BBRRRRRRBB'] * 10 + ['B' * 10] * 3,
-    'A3': (['B' * 10] * 3
-         + ['BBRRRRRRBB'] * 3
-         + ['BBKKKKKKBB'] * 4
-         + ['BBRRRRRRBB'] * 3
-         + ['B' * 10] * 3),
-    'A4': (['B' * 10] * 2
-         + ['K' * 10]
-         + ['KBBBBBBBBK']
-         + ['KBRRRRRRBK']
-         + ['KBRKKKKRBK']
-         + ['KBRKRRKRBK'] * 4
-         + ['KBRKKKKRBK']
-         + ['KBRRRRRRBK']
-         + ['KBBBBBBBBK']
-         + ['K' * 10]
-         + ['B' * 10] * 2),
-    'A5': (['BBBRRBRRBB']
-         + ['BBRRBBBRRB']
-         + ['BRRBBKBBRR']
-         + ['RRBBKKKBBR']
-         + ['RBBKKBKKBB']
-         + ['RBKKBRBKKB']
-         + ['RBBKKBKKBB']
-         + ['RRBBKKKBBR']
-         + ['BRRBBKBBRR']
-         + ['BBRRBBBRRB']
-         + ['BBBRRBRRBB']
-         + ['KBBBRRRBBB']
-         + ['KKBBBRBBBK']
-         + ['BKKBBBBBKK']
-         + ['BBKKBBBKKB']
-         + ['BBBKKBKKBB']),
-    'A7': (['B' * 10] * 3
-         + ['BBBRRRRRRR'] * 2
-         + ['BBBRRKKKKK'] * 2
-         + ['BBBRRKKBBB'] * 4
-         + ['KKBKKRRBRR'] * 2
-         + ['KKKBBBBRRR']
-         + ['KKKKKRRRRR'] * 2),
-    'A9': (['K' * 10]
-         + ['KBBKBBBBBK']
-         + ['KBBKBKKKBK']
-         + ['KKKKBKRKBK']
-         + ['KBBKBKKKBK']
-         + ['KKKKBBBBBK']
-         + ['K' * 10] * 2
-         + ['KRRRRRRRRK']
-         + ['KRKKKKKKRK']
-         + ['KRKRRRRKRK']
-         + ['KRKRBBRKRK']
-         + ['KRKRRRRKRK']
-         + ['KRKKKKKKRK']
-         + ['KRRRRRRRRK']
-         + ['K' * 10]),
-
-    'B4': (['K' * 10]
-         + ['KKKKKKYKYK']
-         + ['KKKKKKKYKK']
-         + ['KKKKKKYKYK']
-         + ['RKKKKKKKKK']
-         + ['KRKKKKKKKK']
-         + ['KKRKKKKKKK']
-         + ['KKKRKKKKKK']
-         + ['KKKKRKKKKK']
-         + ['KKKKKRKKKK']
-         + ['KKKKKKRKKK']
-         + ['KKKKKKKRKK']
-         + ['KKKKKKKKRK']
-         + ['KKKKKKKKKR']
-         + ['K' * 10] * 2),
-    'B7': (['K' * 10]
-         + ['KKYKYKKKKK']
-         + ['KKKYKKKKKR']
-         + ['KKYKYKKKRK']
-         + ['KKKKKKKRKK']
-         + ['KKKKKKRKKK']
-         + ['KKKKKRKKKK']
-         + ['RKKKWKKKKK']
-         + ['KWKRKKYKYK']
-         + ['KKRKKKKYKK']
-         + ['KKKRKKYKYK']
-         + ['KKKKWKKKKK']
-         + ['KKKKKRKKKK']
-         + ['KKKKKKRKKK']
-         + ['KKKKKKKRKK']
-         + ['KKKKKKKKRK']),
-    'C1': (['BBBBBBBRRR']
-         + ['BRRRRRRRRR']
-         + ['BRBBBBBRRR']
-         + ['BRRCCCBBRR']
-         + ['BBBBBCBBBB']
-         + ['BOOOCCBBBB']
-         + ['BOBBBBBBBB']
-         + ['BOOOOOOCCB']
-         + ['BBBBBBBBCB']
-         + ['BBBBCCCCCB']
-         + ['BBBBCBBBBB']
-         + ['RRBBCCCCCB']
-         + ['RRRBBBBBRB']
-         + ['RRRRRRRBRB']
-         + ['RRRBBBRRRB']
-         + ['RRBBBBBBBB']),
-    'C9': (['OOOCCCBBBB']
-         + ['OBOBBCBCCC']
-         + ['OOORRCRRBC']
-         + ['CRBBBCBRCC']
-         + ['CROOOCOROB']
-         + ['CROBOCOROB']
-         + ['CRORRROROB']
-         + ['CBOBOCOBOB'] * 2
-         + ['RRRROCOOOB']
-         + ['RBOOOCRRRR']
-         + ['RBBRBCRBBR']
-         + ['RRRROOROBR']
-         + ['CBOBBCRORR']
-         + ['CCCCCCBOBB']
-         + ['BBOOOOOOBB']),
-}
-
 
 def other_colors3(color):
     if color == 1: return (2, 3)
@@ -404,17 +282,11 @@ if __name__ == '__main__':
     board_name = sys.argv[2 if sys.argv[1] == 'solve' else 1]
     run_solver = sys.argv[1] == 'solve'
 
-    if board_name not in BOARDS:
-        print('Unknown board: {}'.format(board_name))
-        print()
-        print('Available boards:')
-        for k in BOARDS.keys():
-            print('  {}'.format(k))
-
-        sys.exit(1)
+    with open('levels/{}.txt'.format(board_name)) as board_file:
+        board_text = board_file.read().split()
 
     problem_setup = SETUPS[board_name[0]]
-    board = Board([[problem_setup.color_map[c] for c in row] for row in BOARDS[board_name]])
+    board = Board([[problem_setup.color_map[c] for c in row] for row in board_text])
 
     if len(board.board) != BOARD_HEIGHT:
         raise Exception('Board has incorrect height: {} != {}'.format(BOARD_HEIGHT, len(board.board)))
