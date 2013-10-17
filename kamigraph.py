@@ -2,7 +2,10 @@ from __future__ import print_function
 
 import time
 
-from kamicommon import LinkedList
+from kamisearch import (GraphSearchProblem,
+                        iterative_deepening_dfs,
+                        a_star_search)
+
 
 class Graph(object):
     def __init__(self):
@@ -131,84 +134,68 @@ def graph_by_collapsing_node(graph, node, set_color):
     return g2
 
 
-GRAPHS_GENERATED = 0
-START_TIME = None
+class KamiGraphSearchProblem(GraphSearchProblem):
+    def __init__(self, problem_setup, start_graph):
+        self._start_graph = start_graph
+        self._problem_setup = problem_setup
+        self._graphs_generated = 0
+        self._start_time = time.time()
+
+    def start(self):
+        return self._start_graph
+
+    def successors(self, graph):
+        l = []
+
+        for node in graph.connected_nodes():
+            nd = graph.node_data(node)
+            base_color = nd['color']
+
+            for color in self._problem_setup.other_colors(base_color):
+                self._inc_stats()
+
+                new_graph = graph_by_collapsing_node(graph, node, color)
+                edge = (nd['origin'], color)
+                cost = new_graph.num_connected_nodes() - graph.num_connected_nodes()
+
+                l.append((cost, edge, new_graph))
+
+        return l
+
+    def is_target(self, graph):
+        return graph.num_connected_nodes() == 0
+
+    def print_stats(self):
+        print('{} graphs generated ({} graphs/s)'.format(
+            self._graphs_generated,
+            self._graphs_generated / (time.time() - self._start_time)))
+
+    def _inc_stats(self):
+        self._graphs_generated += 1
+        if self._graphs_generated % 10000 == 0:
+            self.print_stats()
+
+    def target_heuristic(self, graph):
+        return graph.num_connected_nodes()
 
 
-def gen_options(other_colors, graph):
-    global GRAPHS_GENERATED
-    l = []
-
-    for node in graph.connected_nodes():
-        nd = graph.node_data(node)
-        base_color = nd['color']
-
-        for color in other_colors(base_color):
-            new_graph = graph_by_collapsing_node(graph, node, color)
-
-            GRAPHS_GENERATED += 1
-            if GRAPHS_GENERATED % 10000 == 0:
-                print('{} graphs generated ({} graphs/s)'.format(GRAPHS_GENERATED, GRAPHS_GENERATED / (time.time() - START_TIME)))
-
-            l.append((nd['origin'], color, new_graph))
-
-    return l
-
-
-def option_sort_key(option):
-    return option[2].num_connected_nodes()
-
-
-def is_graph_done(graph):
-    return graph.num_connected_nodes() == 0
-
-
-def get_solution_path(other_colors, graph, step, max_step):
-    if step == max_step:
-        return False
-
-    if is_graph_done(graph):
-        return None
-
-    options = gen_options(other_colors, graph)
-    options.sort(key=option_sort_key)
-
-    for coord, color, option in options:
-        path = get_solution_path(other_colors, option, step + 1, max_step)
-
-        if path != False:
-            return LinkedList((coord, color), path)
-
-    return False
 
 
 def graph_solve(problem_setup, board, start_depth):
-    global GRAPHS_GENERATED, START_TIME
     graph = graph_from_board(board, draw=False)
     # graph.draw()
 
-    limit = start_depth
-    path = False
+    problem = KamiGraphSearchProblem(problem_setup, graph)
 
-    START_TIME = start_time = time.time()
+    # path = iterative_deepening_dfs(problem, start_depth)
+    path = a_star_search(problem, start_depth)
+    problem.print_stats()
 
-    while path is False:
-        limit += 1
-        print('Solving with step limit {}...'.format(limit - 1))
-        path = get_solution_path(problem_setup.other_colors, graph, 0, limit)
-
-        if limit == 10:
-            print('I guess there\'s no solution...')
-            return
-
-    end_time = time.time()
-    dur = end_time - start_time
-
-    for (x, y), color in path:
-        print('Color {},{} {}'.format(x+1, y+1, problem_setup.color_names[color]))
-
-    print('')
-    print('{} graphs generated in {} seconds ({} graphs/s)'.format(GRAPHS_GENERATED, dur, GRAPHS_GENERATED/dur))
+    if path is not None:
+        for (x, y), color in path:
+            print(' * Color {},{} {}'.format(x+1, y+1, problem_setup.color_names[color]))
+    else:
+        print('No solution found')
 
 
 def is_adjacent(p1, p2):
